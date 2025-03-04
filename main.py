@@ -272,13 +272,17 @@ st.markdown("""
 # Sidebar Inputs
 st.sidebar.header("🔧 Transformer Input Parameters")
 
-voltage = st.sidebar.slider("Primary Voltage (V)", 200, 500, 230)
+voltage_primary = st.sidebar.slider("Primary Voltage (V)", 200, 500, 230)
+voltage_secondary = st.sidebar.slider("Secondary Voltage (V)", 50, 250, 115)  # Added secondary voltage
 frequency = st.sidebar.slider("Frequency (Hz)", 40, 60, 50)
 kva_rating = st.sidebar.number_input("Rated Power (kVA)", 1, 1000, 100)
 core_material = st.sidebar.selectbox("Core Material", ["CRGO", "Ferrite"])
 resistance = st.sidebar.slider("Winding Resistance (Ω)", 0.1, 5.0, 0.5)
 load_percent = st.sidebar.slider("Load Percentage (%)", 0, 100, 50)
 temperature = st.sidebar.slider("Operating Temperature (°C)", 20, 150, 75)
+
+# Calculate Turns Ratio
+turns_ratio = voltage_primary / voltage_secondary if voltage_secondary != 0 else 0
 
 # Dark Mode Toggle
 dir_mode = st.sidebar.radio("🌗 Select Mode", ["Dark Mode", "Light Mode"])
@@ -302,7 +306,7 @@ else:
 
 # Calculate losses dynamically
 iron_losses, copper_losses, stray_losses, dielectric_losses, total_losses, input_power, overall_efficiency = calculate_losses(
-    voltage, frequency, kva_rating, core_material, resistance, load_percent, temperature
+    voltage_primary, frequency, kva_rating, core_material, resistance, load_percent, temperature
 )
 
 # Current load power calculation
@@ -324,6 +328,7 @@ with col2:
     st.markdown('<div class="parameter"><span>Load Power:</span><span class="parameter-value">{:.2f} W</span></div>'.format(load_power), unsafe_allow_html=True)
     st.markdown('<div class="parameter"><span>Input Power:</span><span class="parameter-value">{:.2f} W</span></div>'.format(input_power), unsafe_allow_html=True)
     st.markdown('<div class="parameter"><span>Overall Efficiency:</span><span class="parameter-value">{:.2f}%</span></div>'.format(overall_efficiency), unsafe_allow_html=True)
+    st.markdown('<div class="parameter"><span>Turns Ratio (N1/N2):</span><span class="parameter-value">{:.2f}</span></div>'.format(turns_ratio), unsafe_allow_html=True)  # Added turns ratio
     
     # Progress bar for efficiency visualization
     st.progress(min(overall_efficiency/100, 1.0))
@@ -345,11 +350,11 @@ if show_calculations:
     Where:
     - kh = {0.002 if core_material == 'CRGO' else 0.005} (based on {core_material} core)
     - ke = {0.0001 if core_material == 'CRGO' else 0.0002} (based on {core_material} core)
-    - V = {voltage} V
+    - V = {voltage_primary} V
     - f = {frequency} Hz
     
     Calculation:
-    - Iron Losses = {0.002 if core_material == 'CRGO' else 0.005} × ({voltage}²) × ({frequency}^1.6) + {0.0001 if core_material == 'CRGO' else 0.0002} × ({voltage}²) × {frequency}
+    - Iron Losses = {0.002 if core_material == 'CRGO' else 0.005} × ({voltage_primary}²) × ({frequency}^1.6) + {0.0001 if core_material == 'CRGO' else 0.0002} × ({voltage_primary}²) × {frequency}
     - Iron Losses = {iron_losses:.2f} W
     """)
     
@@ -357,11 +362,11 @@ if show_calculations:
     st.latex(r"P_{copper} = I^2 \times R")
     st.markdown(f"""
     Where:
-    - I = Load Power / Voltage = {load_power:.2f} / {voltage} = {load_power/voltage:.2f} A
+    - I = Load Power / Voltage = {load_power:.2f} / {voltage_primary} = {load_power/voltage_primary:.2f} A
     - R = {resistance} Ω
     
     Calculation:
-    - Copper Losses = ({load_power/voltage:.2f}²) × {resistance}
+    - Copper Losses = ({load_power/voltage_primary:.2f}²) × {resistance}
     - Copper Losses = {copper_losses:.2f} W
     """)
     
@@ -383,10 +388,10 @@ if show_calculations:
     st.markdown(f"""
     Where:
     - insulation_factor = 0.0005 (constant)
-    - V = {voltage} V
+    - V = {voltage_primary} V
     
     Calculation:
-    - Dielectric Losses = 0.0005 × ({voltage}²)
+    - Dielectric Losses = 0.0005 × ({voltage_primary}²)
     - Dielectric Losses = {dielectric_losses:.2f} W
     """)
     
@@ -1182,7 +1187,7 @@ initTransformerVisualization();
 """, height=600)
 
 st.markdown('</div>', unsafe_allow_html=True)
-            # Graph Section
+        # Graph Section
 st.markdown('<div class="card card-3d">', unsafe_allow_html=True)
 st.subheader("📈 Graph Visualization")
 graph_option = st.radio("Choose Graph", ["Efficiency vs Load", "Losses vs Voltage", "Stray Losses vs Temperature"])
@@ -1190,7 +1195,7 @@ graph_option = st.radio("Choose Graph", ["Efficiency vs Load", "Losses vs Voltag
 if graph_option == "Efficiency vs Load":
     # Generate data for Efficiency vs Load graph
     load_percentages = np.linspace(0, 100, 100)
-    efficiencies = [calculate_losses(voltage, frequency, kva_rating, core_material, resistance, load, temperature)[6] for load in load_percentages]
+    efficiencies = [calculate_losses(voltage_primary, frequency, kva_rating, core_material, resistance, load, temperature)[6] for load in load_percentages]
     
     fig = px.line(x=load_percentages, y=efficiencies, labels={'x': 'Load Percentage (%)', 'y': 'Efficiency (%)'}, title="Efficiency vs Load Percentage")
     fig.update_layout(template="plotly_dark")
@@ -1216,7 +1221,7 @@ elif graph_option == "Losses vs Voltage":
 elif graph_option == "Stray Losses vs Temperature":
     # Generate data for Stray Losses vs Temperature graph
     temperatures = np.linspace(20, 150, 100)
-    stray_losses_list = [stray_loss((load_percent / 100) * (kva_rating * 1000), efficiency((load_percent / 100) * (kva_rating * 1000), (load_percent / 100) * (kva_rating * 1000) + iron_loss(voltage, frequency, core_material) + copper_loss((load_percent / 100) * (kva_rating * 1000) / voltage, resistance)), temp/1000) for temp in temperatures]
+    stray_losses_list = [stray_loss((load_percent / 100) * (kva_rating * 1000), efficiency((load_percent / 100) * (kva_rating * 1000), (load_percent / 100) * (kva_rating * 1000) + iron_loss(voltage_primary, frequency, core_material) + copper_loss((load_percent / 100) * (kva_rating * 1000) / voltage_primary, resistance)), temp/1000) for temp in temperatures]
     
     fig = px.line(x=temperatures, y=stray_losses_list, labels={'x': 'Temperature (°C)', 'y': 'Stray Losses (W)'}, title="Stray Losses vs Temperature")
     fig.update_layout(template="plotly_dark")
