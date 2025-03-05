@@ -12,6 +12,27 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
+/* Hide scrollbar but keep functionality */
+::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for Chrome, Safari, and Opera */
+}
+
+body {
+    -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+}
+
+/* Remove black lines between all sections */
+.stMarkdown, .card, .stButton, .stSlider, .stSelectbox, .stNumberInput, .stRadio {
+    border-top: none !important;
+    border-bottom: none !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Rest of your existing CSS code */
 body {
     font-family: 'Roboto', sans-serif;
     background-color: #1e1e1e;
@@ -29,14 +50,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 h1::before, h2::before, h3::before {
-    content: '';
+    /* Remove these lines completely or comment them out */
+    /* content: '';
     position: absolute;
     left: 0;
     top: 0;
     height: 100%;
     width: 4px;
     background: linear-gradient(180deg, #4CAF50, #2196F3);
-    border-radius: 2px;
+    border-radius: 2px; */
 }
 
 .title-container {
@@ -312,6 +334,49 @@ iron_losses, copper_losses, stray_losses, dielectric_losses, total_losses, input
 # Current load power calculation
 load_power = (load_percent / 100) * (kva_rating * 1000)
 
+
+        # Graph Section
+st.markdown('<div class="card card-3d">', unsafe_allow_html=True)
+st.subheader("📈 Graph Visualization")
+graph_option = st.radio("Choose Graph", ["Efficiency vs Load", "Losses vs Voltage", "Stray Losses vs Temperature"])
+
+if graph_option == "Efficiency vs Load":
+    # Generate data for Efficiency vs Load graph
+    load_percentages = np.linspace(0, 100, 100)
+    efficiencies = [calculate_losses(voltage_primary, frequency, kva_rating, core_material, resistance, load, temperature)[6] for load in load_percentages]
+    
+    fig = px.line(x=load_percentages, y=efficiencies, labels={'x': 'Load Percentage (%)', 'y': 'Efficiency (%)'}, title="Efficiency vs Load Percentage")
+    fig.update_layout(template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
+
+elif graph_option == "Losses vs Voltage":
+    # Generate data for Losses vs Voltage graph
+    voltages = np.linspace(200, 500, 100)
+    iron_losses_list = [iron_loss(v, frequency, core_material) for v in voltages]
+    copper_losses_list = [copper_loss((load_percent / 100) * (kva_rating * 1000) / v, resistance) for v in voltages]
+    stray_losses_list = [stray_loss((load_percent / 100) * (kva_rating * 1000), efficiency((load_percent / 100) * (kva_rating * 1000), (load_percent / 100) * (kva_rating * 1000) + iron_loss(v, frequency, core_material) + copper_loss((load_percent / 100) * (kva_rating * 1000) / v, resistance)), temperature/1000) for v in voltages]
+    dielectric_losses_list = [dielectric_loss(v) for v in voltages]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=voltages, y=iron_losses_list, mode='lines', name='Iron Losses'))
+    fig.add_trace(go.Scatter(x=voltages, y=copper_losses_list, mode='lines', name='Copper Losses'))
+    fig.add_trace(go.Scatter(x=voltages, y=stray_losses_list, mode='lines', name='Stray Losses'))
+    fig.add_trace(go.Scatter(x=voltages, y=dielectric_losses_list, mode='lines', name='Dielectric Losses'))
+    
+    fig.update_layout(title="Losses vs Voltage", xaxis_title="Voltage (V)", yaxis_title="Losses (W)", template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
+
+elif graph_option == "Stray Losses vs Temperature":
+    # Generate data for Stray Losses vs Temperature graph
+    temperatures = np.linspace(20, 150, 100)
+    stray_losses_list = [stray_loss((load_percent / 100) * (kva_rating * 1000), efficiency((load_percent / 100) * (kva_rating * 1000), (load_percent / 100) * (kva_rating * 1000) + iron_loss(voltage_primary, frequency, core_material) + copper_loss((load_percent / 100) * (kva_rating * 1000) / voltage_primary, resistance)), temp/1000) for temp in temperatures]
+    
+    fig = px.line(x=temperatures, y=stray_losses_list, labels={'x': 'Temperature (°C)', 'y': 'Stray Losses (W)'}, title="Stray Losses vs Temperature")
+    fig.update_layout(template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
 # Display Results in Cards
 st.markdown('<div class="card card-3d">', unsafe_allow_html=True)
 st.subheader("📊 Losses Breakdown")
@@ -418,8 +483,12 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown('<div class="card card-3d">', unsafe_allow_html=True)
 st.subheader("🔄 Interactive 3D Transformer Model")
 
-# 3D visualization of a transformer with enhanced animations
-html("""
+# Toggle for 3D Transformer Visualization
+show_3d_model = st.checkbox("🔄 Show Interactive 3D Transformer Model")
+
+if show_3d_model:
+    # Keep the existing HTML/JavaScript code for the 3D visualization
+   html("""
 <div id="transformer-3d" style="height: 600px; width: 100%; margin: 20px 0; border-radius: 10px; box-shadow: 0 10px 20px rgba(0,0,0,0.2);"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1185,49 +1254,12 @@ function initTransformerVisualization() {
 initTransformerVisualization();
 </script>
 """, height=600)
-
+else:
+    st.info("Toggle the checkbox above to view the interactive 3D transformer model.")
+    
 st.markdown('</div>', unsafe_allow_html=True)
-        # Graph Section
-st.markdown('<div class="card card-3d">', unsafe_allow_html=True)
-st.subheader("📈 Graph Visualization")
-graph_option = st.radio("Choose Graph", ["Efficiency vs Load", "Losses vs Voltage", "Stray Losses vs Temperature"])
 
-if graph_option == "Efficiency vs Load":
-    # Generate data for Efficiency vs Load graph
-    load_percentages = np.linspace(0, 100, 100)
-    efficiencies = [calculate_losses(voltage_primary, frequency, kva_rating, core_material, resistance, load, temperature)[6] for load in load_percentages]
-    
-    fig = px.line(x=load_percentages, y=efficiencies, labels={'x': 'Load Percentage (%)', 'y': 'Efficiency (%)'}, title="Efficiency vs Load Percentage")
-    fig.update_layout(template="plotly_dark")
-    st.plotly_chart(fig, use_container_width=True)
 
-elif graph_option == "Losses vs Voltage":
-    # Generate data for Losses vs Voltage graph
-    voltages = np.linspace(200, 500, 100)
-    iron_losses_list = [iron_loss(v, frequency, core_material) for v in voltages]
-    copper_losses_list = [copper_loss((load_percent / 100) * (kva_rating * 1000) / v, resistance) for v in voltages]
-    stray_losses_list = [stray_loss((load_percent / 100) * (kva_rating * 1000), efficiency((load_percent / 100) * (kva_rating * 1000), (load_percent / 100) * (kva_rating * 1000) + iron_loss(v, frequency, core_material) + copper_loss((load_percent / 100) * (kva_rating * 1000) / v, resistance)), temperature/1000) for v in voltages]
-    dielectric_losses_list = [dielectric_loss(v) for v in voltages]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=voltages, y=iron_losses_list, mode='lines', name='Iron Losses'))
-    fig.add_trace(go.Scatter(x=voltages, y=copper_losses_list, mode='lines', name='Copper Losses'))
-    fig.add_trace(go.Scatter(x=voltages, y=stray_losses_list, mode='lines', name='Stray Losses'))
-    fig.add_trace(go.Scatter(x=voltages, y=dielectric_losses_list, mode='lines', name='Dielectric Losses'))
-    
-    fig.update_layout(title="Losses vs Voltage", xaxis_title="Voltage (V)", yaxis_title="Losses (W)", template="plotly_dark")
-    st.plotly_chart(fig, use_container_width=True)
-
-elif graph_option == "Stray Losses vs Temperature":
-    # Generate data for Stray Losses vs Temperature graph
-    temperatures = np.linspace(20, 150, 100)
-    stray_losses_list = [stray_loss((load_percent / 100) * (kva_rating * 1000), efficiency((load_percent / 100) * (kva_rating * 1000), (load_percent / 100) * (kva_rating * 1000) + iron_loss(voltage_primary, frequency, core_material) + copper_loss((load_percent / 100) * (kva_rating * 1000) / voltage_primary, resistance)), temp/1000) for temp in temperatures]
-    
-    fig = px.line(x=temperatures, y=stray_losses_list, labels={'x': 'Temperature (°C)', 'y': 'Stray Losses (W)'}, title="Stray Losses vs Temperature")
-    fig.update_layout(template="plotly_dark")
-    st.plotly_chart(fig, use_container_width=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
 # Footer
 st.markdown("""
 <div style="text-align: center; padding: 20px; font-size: 14px; color: #888;">
