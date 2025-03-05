@@ -1264,7 +1264,7 @@ st.markdown("""
 <div style="text-align: center; padding: 20px; font-size: 14px; color: #aaa;">
     <p>⚡ Powered by <strong>Streamlit</strong>, <strong>Plotly</strong>, and <strong>Three.js</strong></p>
     <p>© 2025 Transformer Analyzer. All Rights Reserved.</p>
-    <p style="font-size: 12px;">Designed with ❤️ for engineers & researchers.</p>
+    <p style="font-size: 12px;">Designed with ❤️ for Engineers & Researchers.</p>
 </div>
 """, unsafe_allow_html=True)
 
